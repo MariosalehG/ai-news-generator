@@ -1,6 +1,5 @@
 # Standalone smoke test: resolve channel URLs -> RSS feed -> recent videos -> transcript
-from app.scrapers.youtube_rss import fetch_latest_videos, fetch_recent_videos, resolve_channel_id
-from app.scrapers.youtube_transcript import fetch_transcript
+from app.scrapers.youtube import YouTubeScraper
 
 CHANNEL_URLS = [
     "https://www.youtube.com/@mkbhd",
@@ -10,13 +9,14 @@ CHANNEL_URLS = [
 
 
 def main() -> None:
+    scraper = YouTubeScraper()
     for url in CHANNEL_URLS:
         print(f"\n=== {url} ===")
-        channel_id = resolve_channel_id(url)
+        channel_id = scraper.resolve_channel_id(url)
         print(f"channel_id: {channel_id}")
 
-        all_videos = fetch_latest_videos(channel_id)
-        recent = fetch_recent_videos(channel_id)
+        all_videos = scraper.fetch_latest_videos(channel_id)
+        recent = scraper.fetch_recent_videos(channel_id)
         print(f"videos in feed: {len(all_videos)} | published in last 24h: {len(recent)}")
 
         for v in all_videos[:3]:
@@ -24,7 +24,7 @@ def main() -> None:
 
         if all_videos:
             video = all_videos[0]
-            transcript = fetch_transcript(video.video_id)
+            transcript = scraper.fetch_transcript(video.video_id)
             if transcript:
                 print(f"  transcript ({len(transcript)} chars): {transcript[:200]}...")
             else:
