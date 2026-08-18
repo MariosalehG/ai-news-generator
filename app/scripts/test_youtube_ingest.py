@@ -1,5 +1,9 @@
 # Standalone smoke test: resolve channel URLs -> RSS feed -> recent videos -> transcript
+import sys
+
 from app.scrapers.youtube import YouTubeScraper
+
+sys.stdout.reconfigure(encoding="utf-8")
 
 CHANNEL_URLS = [
     "https://www.youtube.com/@mkbhd",
@@ -26,7 +30,7 @@ def main() -> None:
             video = all_videos[0]
             transcript = scraper.fetch_transcript(video.video_id)
             if transcript:
-                print(f"  transcript ({len(transcript)} chars): {transcript[:200]}...")
+                print(f"  transcript ({len(transcript.text)} chars): {transcript.text[:200]}...")
             else:
                 print("  transcript: unavailable")
 

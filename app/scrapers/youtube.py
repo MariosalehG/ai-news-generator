@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import re
 import time
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 import feedparser
 import requests
+from pydantic import BaseModel
 from youtube_transcript_api import CouldNotRetrieveTranscript, YouTubeTranscriptApi
 
 FEED_URL = "https://www.youtube.com/feeds/videos.xml"
@@ -15,14 +15,17 @@ CHANNEL_ID_RE = re.compile(r"UC[\w-]{22}")
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 
-@dataclass
-class VideoEntry:
+class ChannelVideo(BaseModel):
     video_id: str
     title: str
     url: str
     published: datetime
     channel_id: str
     channel_title: str
+
+
+class Transcript(BaseModel):
+    text: str
 
 
 class YouTubeScraper:
@@ -54,10 +57,17 @@ class YouTubeScraper:
 
         raise ValueError(f"Could not resolve channel ID from {channel_url}")
 
+    def extract_video_id(self, video_url: str) -> str:
+        """Extract the video ID from a YouTube URL."""
+        match = re.search(r"(?:v=|/)([a-zA-Z0-9_-]{11})", video_url)
+        if match:
+            return match.group(1)
+        raise ValueError(f"Could not extract video ID from {video_url}")
+
     def channel_feed_url(self, channel_id: str) -> str:
         return f"{FEED_URL}?channel_id={channel_id}"
 
-    def fetch_latest_videos(self, channel_id: str, retries: int = 3) -> list[VideoEntry]:
+    def fetch_latest_videos(self, channel_id: str, retries: int = 3) -> list[ChannelVideo]:
         """Fetch all entries currently in the channel's RSS feed (YouTube caps this at ~15).
 
         YouTube's feed endpoint intermittently 404s known-good channels under rate limiting;
@@ -81,7 +91,7 @@ class YouTubeScraper:
         videos = []
         for entry in feed.entries:
             videos.append(
-                VideoEntry(
+                ChannelVideo(
                     video_id=entry.yt_videoid,
                     title=entry.title,
                     url=entry.link,
@@ -92,22 +102,29 @@ class YouTubeScraper:
             )
         return videos
 
-    def fetch_recent_videos(self, channel_id: str, hours: int = 24) -> list[VideoEntry]:
+    def fetch_recent_videos(self, channel_id: str, hours: int = 24) -> list[ChannelVideo]:
         """Fetch videos published within the last `hours` (default: 24)."""
         since = datetime.now(timezone.utc) - timedelta(hours=hours)
         return [v for v in self.fetch_latest_videos(channel_id) if v.published >= since]
 
-    def fetch_transcript(self, video_id: str) -> str | None:
-        """Return the video's transcript as plain text, or None if unavailable."""
+    def fetch_transcript(self, video_id: str) -> Transcript | None:
+        """Return the video's transcript, or None if unavailable."""
         try:
             fetched = self._transcript_api.fetch(video_id, languages=list(self.transcript_languages))
         except CouldNotRetrieveTranscript:
             return None
-        return " ".join(snippet.text for snippet in fetched)
+        return Transcript(text=" ".join(snippet.text for snippet in fetched))
 
 
 if __name__ == "__main__":
-    scraper = YouTubeScraper()
-    channel_id = scraper.resolve_channel_id("https://www.youtube.com/@mkbhd")
-    for video in scraper.fetch_recent_videos(channel_id):
-        print(video)
+    scraper = YouTubeScraper(transcript_languages=("ar",))
+    channel_id = scraper.resolve_channel_id("https://www.youtube.com/@Asateer-ٔ-m4r")
+    print(f"Channel ID: {channel_id}")
+    videos = scraper.fetch_recent_videos(channel_id, hours=24)
+    for video in videos:
+        print(f"{video.published.isoformat()} - {video.title} ({video.url}) {video.video_id}")
+        transcript = scraper.fetch_transcript(video_id=video.video_id)
+        if transcript:
+            print(f"Transcript: {transcript.text[:100]}...")
+        else:
+            print("Transcript: Not available")
