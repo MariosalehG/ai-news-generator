@@ -45,7 +45,7 @@ class OpenAINewsScraper:
             NewsArticle(
                 title=entry.title,
                 url=entry.link,
-                category=entry.get("tags", [{}])[0].get("term", ""),
+                category=(entry.get("tags") or [{}])[0].get("term", ""),
                 summary=entry.get("summary", ""),
                 published=datetime(*entry.published_parsed[:6], tzinfo=timezone.utc),
                 guid=entry.get("guid", entry.link)
