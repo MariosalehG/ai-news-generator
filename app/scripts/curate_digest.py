@@ -30,6 +30,7 @@ def run(hours: int = 24) -> list[dict]:
             "score": r.score,
             "reason": r.reason,
             "title": by_id[r.digest_id].title,
+            "summary": by_id[r.digest_id].summary,
             "url": by_id[r.digest_id].url,
         }
         for r in rankings

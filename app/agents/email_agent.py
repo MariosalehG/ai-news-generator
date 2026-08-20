@@ -15,21 +15,17 @@ MODEL = "gpt-4.1-mini"
 TOP_N = 10
 
 SYSTEM_PROMPT = """
-
-You write a personalized daily AI news digest.
+You write the introduction for a personalized daily AI news email digest.
 
 You will receive:
 
 * The recipient's name
 * Today's date
-* A ranked list of AI news items
-* Each item's title, URL, and relevance score
+* The titles of today's top-ranked AI news items
 
-Your goal is to produce a concise, engaging daily briefing that feels like a smart editor has selected the most interesting AI developments for the reader.
-
-### OUTPUT FORMAT
-
-Start with a short 2–3 sentence introduction.
+Your goal is to produce a concise, engaging 2-3 sentence introduction that feels like a smart
+editor has selected the most interesting AI developments for the reader. The ranked items
+themselves are rendered separately below your introduction -- you only write the intro.
 
 The introduction should:
 
@@ -38,41 +34,9 @@ The introduction should:
 * Give an engaging editorial overview of what is happening across today's AI landscape.
 * Focus on the most interesting theme, development, or tension connecting the stories.
 * Explain why today's developments are worth paying attention to.
-* Avoid generic phrases such as "today's digest highlights," "latest breakthroughs," "shaping the future of AI," or "AI is rapidly evolving."
-* Do not list individual stories in the introduction.
-
-After the introduction, display the news items as a **ranked numbered list**, ordered from highest score to lowest score.
-
-For every item, use exactly this format:
-
-1. **Article Title** (92)
-   URL
-
-2. **Article Title** (88)
-   URL
-
-The number represents the item's ranking, while the score must appear **in parentheses at the end of the title**.
-
-### RANKING RULES
-
-* Preserve the ranking provided in the input.
-* Sort items from highest score to lowest score.
-* The highest-scoring item must be #1.
-* Do not change, recalculate, or invent scores.
-* Always display the score in parentheses immediately after the title.
-* Keep the original article title and URL.
-* Do not add additional scores or commentary to the ranking.
-
-### WRITING STYLE
-
-Make the digest:
-
-* Smart and editorial rather than robotic.
-* Concise but interesting.
-* Energetic without being sensationalist.
-* Easy to scan.
-* Focused on developments that matter in practice.
-* Varied from day to day.
+* Avoid generic phrases such as "today's digest highlights," "latest breakthroughs," "shaping
+  the future of AI," or "AI is rapidly evolving."
+* Do not list individual stories -- that's handled separately.
 
 Where appropriate, emphasize themes such as:
 
@@ -88,24 +52,42 @@ Where appropriate, emphasize themes such as:
 
 Do not force these themes if they are not present in the day's stories.
 
-### IMPORTANT
-
-Do not add a separate "Top Stories" heading unless explicitly requested.
-
-Do not use bullet points for the ranked news items.
-
-Do not summarize each article. The title and URL are sufficient.
-
-Do not include any commentary after the ranked list.
-
-Return only the final digest.
-
-
+Make the intro smart and editorial rather than robotic, concise but interesting, energetic
+without being sensationalist, and varied from day to day. Return only the introduction text.
 """
 
 
 class EmailIntro(BaseModel):
     intro: str
+
+
+class EmailArticle(BaseModel):
+    rank: int
+    title: str
+    summary: str
+    url: str
+    score: int
+
+
+class EmailDigest(BaseModel):
+    recipient_name: str
+    date: date_type
+    greeting: str
+    articles: list[EmailArticle]
+    total_ranked: int
+    top_n: int
+
+    def to_markdown(self) -> str:
+        """Render as markdown: the greeting, then one section (header + summary + link) per article."""
+        parts = [self.greeting, ""]
+        for article in self.articles:
+            parts.append(f"## {article.rank}. {article.title}")
+            parts.append("")
+            parts.append(article.summary)
+            parts.append("")
+            parts.append(f"[Read more]({article.url})")
+            parts.append("")
+        return "\n".join(parts).strip()
 
 
 def top_n(ranked_items: list[dict], n: int = TOP_N) -> list[dict]:
