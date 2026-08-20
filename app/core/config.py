@@ -15,6 +15,9 @@ class Settings(BaseSettings):
 
     openai_api_key: str | None = None
 
+    webshare_proxy_username: str | None = None
+    webshare_proxy_password: str | None = None
+
     smtp_host: str | None = None
     smtp_port: int = 587
     smtp_user: str | None = None

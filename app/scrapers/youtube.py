@@ -9,6 +9,9 @@ import feedparser
 import requests
 from pydantic import BaseModel
 from youtube_transcript_api import CouldNotRetrieveTranscript, YouTubeTranscriptApi
+from youtube_transcript_api.proxies import WebshareProxyConfig
+
+from app.core.config import settings
 
 FEED_URL = "https://www.youtube.com/feeds/videos.xml"
 CHANNEL_ID_RE = re.compile(r"UC[\w-]{22}")
@@ -22,6 +25,7 @@ class ChannelVideo(BaseModel):
     published: datetime
     channel_id: str
     channel_title: str
+    summary: str
 
 
 class Transcript(BaseModel):
@@ -31,7 +35,14 @@ class Transcript(BaseModel):
 class YouTubeScraper:
     def __init__(self, transcript_languages: tuple[str, ...] = ("en",)):
         self.transcript_languages = transcript_languages
-        self._transcript_api = YouTubeTranscriptApi()
+
+        proxy_config = None
+        if settings.webshare_proxy_username and settings.webshare_proxy_password:
+            proxy_config = WebshareProxyConfig(
+                proxy_username=settings.webshare_proxy_username,
+                proxy_password=settings.webshare_proxy_password,
+            )
+        self._transcript_api = YouTubeTranscriptApi(proxy_config=proxy_config)
 
     def resolve_channel_id(self, channel_url: str) -> str:
         """Resolve any YouTube channel URL (/channel/UC…, @handle, /c/…, /user/…) to its UC… channel ID."""
@@ -98,6 +109,7 @@ class YouTubeScraper:
                     published=datetime(*entry.published_parsed[:6], tzinfo=timezone.utc),
                     channel_id=channel_id,
                     channel_title=getattr(feed.feed, "title", ""),
+                    summary=entry.summary
                 )
             )
         return videos
@@ -117,10 +129,10 @@ class YouTubeScraper:
 
 
 if __name__ == "__main__":
-    scraper = YouTubeScraper(transcript_languages=("ar",))
+    scraper = YouTubeScraper(transcript_languages=("en",))
     channel_id = scraper.resolve_channel_id("https://www.youtube.com/@Asateer-ٔ-m4r")
     print(f"Channel ID: {channel_id}")
-    videos = scraper.fetch_recent_videos(channel_id, hours=24)
+    videos = scraper.fetch_recent_videos(channel_id, hours=100)
     for video in videos:
         print(f"{video.published.isoformat()} - {video.title} ({video.url}) {video.video_id}")
         transcript = scraper.fetch_transcript(video_id=video.video_id)

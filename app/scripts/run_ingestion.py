@@ -38,7 +38,7 @@ def run(hours: int = 24) -> dict[str, dict[str, int]]:
                 title=video.title,
                 url=video.url,
                 category=None,
-                summary=None,
+                summary=video.summary,
                 content=transcript.text if transcript else None,
                 published_at=video.published,
             )
@@ -46,7 +46,7 @@ def run(hours: int = 24) -> dict[str, dict[str, int]]:
 
     openai_scraper = OpenAINewsScraper()
     for item in openai_scraper.list_articles(hours=hours):
-        content = openai_scraper.fetch_article_text(item.url)
+        content = openai_scraper.url_to_markdown(item.url)
         _, created = repo.upsert(
             source_type="openai",
             source_name="OpenAI",
@@ -81,6 +81,6 @@ def run(hours: int = 24) -> dict[str, dict[str, int]]:
 
 
 if __name__ == "__main__":
-    result = run(hours=72)
+    result = run(hours=100)
     for source in result["saved"]:
         print(f"{source}: {result['saved'][source]} new, {result['updated'][source]} updated")

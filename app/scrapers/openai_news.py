@@ -36,7 +36,7 @@ class OpenAINewsScraper:
     def __init__(self):
             self.converter = DocumentConverter()
 
-    def list_articles(self, hours: int | None = None) -> list[NewsArticle]:
+    def list_articles(self, hours: int | None = None, ids: list[str] | None = None) -> list[NewsArticle]:
         """Fetch articles from the RSS feed, optionally filtered to those published in the last `hours`."""
         resp = requests.get(RSS_URL, timeout=10, headers=HEADERS)
         resp.raise_for_status()
@@ -56,6 +56,9 @@ class OpenAINewsScraper:
         if hours is not None:
             since = datetime.now(timezone.utc) - timedelta(hours=hours)
             articles = [a for a in articles if a.published >= since]
+
+        if ids is not None:
+            articles = [a for a in articles if a.guid in ids]
 
         return articles
 

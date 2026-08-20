@@ -57,5 +57,13 @@ class ArticleRepository:
         stmt = select(Article).where(Article.published_at >= since).order_by(Article.published_at.desc())
         return list(self.session.scalars(stmt))
 
+    def list_missing_content(self) -> list[Article]:
+        stmt = select(Article).where(Article.content.is_(None))
+        return list(self.session.scalars(stmt))
+
+    def set_content(self, article: Article, content: str) -> None:
+        article.content = content
+        self.session.commit()
+
     def close(self) -> None:
         self.session.close()
