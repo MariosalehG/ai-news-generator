@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from app.core.database import SessionLocal
-from app.database.models import Article
+from app.database.models import Article, Digest
 
 
 class ArticleRepository:
@@ -64,6 +64,34 @@ class ArticleRepository:
     def set_content(self, article: Article, content: str) -> None:
         article.content = content
         self.session.commit()
+
+    def list_without_digest(self) -> list[Article]:
+        """Articles that have content but no digest entry yet."""
+        digested_ids = select(Digest.article_id)
+        stmt = select(Article).where(Article.content.is_not(None), Article.id.not_in(digested_ids))
+        return list(self.session.scalars(stmt))
+
+    def close(self) -> None:
+        self.session.close()
+
+
+class DigestRepository:
+    def __init__(self, session: Session | None = None):
+        self.session = session or SessionLocal()
+
+    def exists(self, article_id: int) -> bool:
+        stmt = select(Digest.id).where(Digest.article_id == article_id)
+        return self.session.execute(stmt).first() is not None
+
+    def add(self, article_id: int, url: str, title: str, summary: str) -> Digest | None:
+        """Insert a new digest. Returns None if one already exists for this article."""
+        if self.exists(article_id):
+            return None
+        digest = Digest(article_id=article_id, url=url, title=title, summary=summary)
+        self.session.add(digest)
+        self.session.commit()
+        self.session.refresh(digest)
+        return digest
 
     def close(self) -> None:
         self.session.close()
