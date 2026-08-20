@@ -1,4 +1,4 @@
-# Runner: pulls new items from all sources (YouTube channels, OpenAI, Anthropic) within a time window
+# Runner: pulls new items from all sources (YouTube channels, OpenAI, Anthropic) and stores them in the DB
 from __future__ import annotations
 
 import json
@@ -7,6 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from app.database.repository import ArticleRepository
 from app.scrapers.anthropic_news import AnthropicScraper
 from app.scrapers.openai_news import OpenAINewsScraper
 from app.scrapers.youtube import YouTubeScraper
@@ -18,37 +19,68 @@ def load_youtube_channels() -> list[str]:
     return json.loads(YOUTUBE_CHANNELS_FILE.read_text(encoding="utf-8"))
 
 
-def run(hours: int = 24) -> dict[str, list[dict]]:
-    """Fetch everything published in the last `hours` from every source."""
-    results: dict[str, list[dict]] = {"youtube": [], "openai": [], "anthropic": []}
+def run(hours: int = 24) -> dict[str, dict[str, int]]:
+    """Fetch everything published in the last `hours` from every source.
+    New items are inserted; items whose external_id already exists are overwritten."""
+    repo = ArticleRepository()
+    saved = {"youtube": 0, "openai": 0, "anthropic": 0}
+    updated = {"youtube": 0, "openai": 0, "anthropic": 0}
 
     youtube = YouTubeScraper()
     for channel_url in load_youtube_channels():
         channel_id = youtube.resolve_channel_id(channel_url)
         for video in youtube.fetch_recent_videos(channel_id, hours=hours):
-            results["youtube"].append(
-                {"video": video, "transcript": youtube.fetch_transcript(video.video_id)}
+            transcript = youtube.fetch_transcript(video.video_id)
+            _, created = repo.upsert(
+                source_type="youtube",
+                source_name=video.channel_title,
+                external_id=video.video_id,
+                title=video.title,
+                url=video.url,
+                category=None,
+                summary=None,
+                content=transcript.text if transcript else None,
+                published_at=video.published,
             )
+            (saved if created else updated)["youtube"] += 1
 
     openai_scraper = OpenAINewsScraper()
-    for article in openai_scraper.list_articles(hours=hours):
-        results["openai"].append(
-            {"article": article, "content": openai_scraper.fetch_article_text(article.url)}
+    for item in openai_scraper.list_articles(hours=hours):
+        content = openai_scraper.fetch_article_text(item.url)
+        _, created = repo.upsert(
+            source_type="openai",
+            source_name="OpenAI",
+            external_id=item.guid,
+            title=item.title,
+            url=item.url,
+            category=item.category,
+            summary=item.summary,
+            content=content.text if content else None,
+            published_at=item.published,
         )
+        (saved if created else updated)["openai"] += 1
 
     anthropic_scraper = AnthropicScraper()
-    for article in anthropic_scraper.list_articles(hours=hours):
-        results["anthropic"].append(
-            {"article": article, "content": anthropic_scraper.fetch_article_text(article.url)}
+    for item in anthropic_scraper.list_articles(hours=hours):
+        content = anthropic_scraper.fetch_article_text(item.url)
+        _, created = repo.upsert(
+            source_type="anthropic",
+            source_name=f"Anthropic {item.source}",
+            external_id=item.guid,
+            title=item.title,
+            url=item.url,
+            category=item.category,
+            summary=item.summary,
+            content=content.text if content else None,
+            published_at=item.published,
         )
+        (saved if created else updated)["anthropic"] += 1
 
-    return results
+    repo.close()
+    return {"saved": saved, "updated": updated}
 
 
 if __name__ == "__main__":
-    results = run(hours=72)
-    for source, items in results.items():
-        print(f"\n=== {source}: {len(items)} new item(s) ===")
-        for item in items:
-            entry = item.get("video") or item.get("article")
-            print(f"- [{entry.published.isoformat()}] {entry.title} ({entry.url})")
+    result = run(hours=72)
+    for source in result["saved"]:
+        print(f"{source}: {result['saved'][source]} new, {result['updated'][source]} updated")

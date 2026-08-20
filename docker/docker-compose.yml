@@ -1,1 +1,16 @@
-# Minimal Postgres service definition (placeholder, to be filled in during implementation)
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ai_news_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ai_news
+      POSTGRES_PASSWORD: ai_news
+      POSTGRES_DB: ai_news
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
