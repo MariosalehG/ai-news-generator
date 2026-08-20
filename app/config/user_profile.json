@@ -1,0 +1,16 @@
+{
+    "role": "AI engineer and builder",
+    "background": "Builds AI-powered products and internal tools; hands-on experience with LLM agents, RAG, and API integrations. Comfortable with technical and research-heavy content, not just consumer news.",
+    "interests": [
+        "New model releases and capability benchmarks (OpenAI, Anthropic, Google, open source)",
+        "AI agents, tool use, and agentic coding tools",
+        "Practical engineering guides for building with LLM APIs",
+        "AI safety, alignment, and interpretability research",
+        "Applied AI case studies from companies putting AI into production",
+        "Notable AI industry business news (funding, acquisitions, major policy shifts)"
+    ],
+    "not_interested_in": [
+        "Consumer hardware reviews with no AI angle",
+        "Routine corporate announcements with no substantive news"
+    ]
+}

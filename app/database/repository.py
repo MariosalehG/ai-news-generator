@@ -93,5 +93,10 @@ class DigestRepository:
         self.session.refresh(digest)
         return digest
 
+    def list_recent(self, hours: int = 24) -> list[Digest]:
+        since = datetime.now(timezone.utc) - timedelta(hours=hours)
+        stmt = select(Digest).where(Digest.created_at >= since).order_by(Digest.created_at.desc())
+        return list(self.session.scalars(stmt))
+
     def close(self) -> None:
         self.session.close()
