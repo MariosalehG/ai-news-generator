@@ -5,13 +5,9 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from app.core.database import SessionLocal
-from app.database.models import Article, Digest
+from app.db.models import Article, Digest
 
 
 class ArticleRepository:

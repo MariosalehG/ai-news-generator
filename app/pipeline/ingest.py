@@ -1,13 +1,10 @@
-# Runner: pulls new items from all sources (YouTube channels, OpenAI, Anthropic) and stores them in the DB
+# Pipeline stage 1: pulls new items from all sources (YouTube channels, OpenAI, Anthropic) and stores them in the DB
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
-from app.database.repository import ArticleRepository
+from app.db.repository import ArticleRepository
 from app.scrapers.anthropic_news import AnthropicScraper
 from app.scrapers.openai_news import OpenAINewsScraper
 from app.scrapers.youtube import YouTubeScraper
@@ -78,9 +75,3 @@ def run(hours: int = 24) -> dict[str, dict[str, int]]:
 
     repo.close()
     return {"saved": saved, "updated": updated}
-
-
-if __name__ == "__main__":
-    result = run(hours=100)
-    for source in result["saved"]:
-        print(f"{source}: {result['saved'][source]} new, {result['updated'][source]} updated")
