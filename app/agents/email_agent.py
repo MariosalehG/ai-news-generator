@@ -89,6 +89,17 @@ class EmailDigest(BaseModel):
             parts.append("")
         return "\n".join(parts).strip()
 
+    def to_html(self) -> str:
+        """Render as a minimal HTML email: small headings per article, bold links, italic score line."""
+        parts = [f"<p>{self.greeting}</p>"]
+        for article in self.articles:
+            parts.append(f"<h4>{article.rank}. {article.title}</h4>")
+            parts.append(f"<p>{article.summary}</p>")
+            parts.append(f"<p><i>Relevance: {article.score}/100</i></p>")
+            parts.append(f'<p><b><a href="{article.url}">Read more &rarr;</a></b></p>')
+        body = "\n".join(parts)
+        return f"<html><body>{body}</body></html>"
+
 
 def top_n(ranked_items: list[dict], n: int = TOP_N) -> list[dict]:
     """Take the curator agent's score-sorted output and limit it to the top `n`."""
