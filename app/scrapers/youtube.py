@@ -101,6 +101,8 @@ class YouTubeScraper:
 
         videos = []
         for entry in feed.entries:
+            if entry.link.find("/shorts/") != -1:
+                continue  # skip YouTube Shorts, which don't have transcripts
             videos.append(
                 ChannelVideo(
                     video_id=entry.yt_videoid,
